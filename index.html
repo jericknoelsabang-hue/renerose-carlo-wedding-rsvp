@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8f1e6">
+  <title>Renerose & Carlo | RSVP</title>
+  <style>
+    :root{--ink:#3f3328;--gold:#9d7844;--rose:#c88f8b;--paper:#fffaf3;--line:#e8dac5;--muted:#756858}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(145deg,#f4eadb,#fbf7f0 52%,#f3e5dc);color:var(--ink);font-family:Georgia,'Times New Roman',serif;display:grid;place-items:center;padding:22px}
+    .card{width:min(100%,530px);background:rgba(255,250,243,.97);border:1px solid #d9c39f;border-radius:22px;padding:clamp(25px,6vw,52px);box-shadow:0 18px 54px #57452a18;text-align:center;position:relative;overflow:hidden}
+    .card:before{content:"";position:absolute;inset:10px;border:1px solid #eadcc7;border-radius:15px;pointer-events:none}
+    .eyebrow{font:11px/1.4 Arial,sans-serif;text-transform:uppercase;letter-spacing:.28em;color:var(--gold)}
+    h1{font-size:clamp(40px,10vw,60px);line-height:.98;font-weight:400;font-style:italic;color:#886536;margin:20px 0 12px}
+    .amp{font-style:normal;font-size:.68em;color:var(--rose)}
+    .date{font:12px Arial,sans-serif;letter-spacing:.22em;color:#826b4b;margin:18px 0 28px}
+    .divider{height:1px;width:74px;background:#c7a976;margin:24px auto}
+    h2{font-size:23px;font-weight:400;margin:0 0 8px}p{line-height:1.55;color:var(--muted);margin:0 0 20px}
+    .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 12px}
+    button{font:600 14px Arial,sans-serif;cursor:pointer;border-radius:999px;padding:13px 10px;transition:.18s ease}
+    .choice{border:1px solid #c7a976;background:#fffdf9;color:#72552d}.choice:hover,.choice[aria-pressed="true"]{background:#8b6b3c;color:#fff;border-color:#8b6b3c;transform:translateY(-1px)}
+    .form{display:none;text-align:left;margin-top:20px}.form.visible{display:block}.field{margin:13px 0}.field label{display:block;font:11px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#806c50;margin:0 0 7px}
+    input,textarea,select{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--ink);font:15px Arial,sans-serif;outline:none}input:focus,textarea:focus,select:focus{border-color:#b08a54;box-shadow:0 0 0 3px #b08a5420}textarea{resize:vertical;min-height:80px}
+    .submit{width:100%;border:0;background:#806038;color:white;padding:14px;margin-top:6px}.submit:hover{background:#684c2c}.submit:disabled{opacity:.55;cursor:wait}
+    .status{min-height:22px;font:13px Arial,sans-serif;text-align:center;margin:14px 0 0;color:#5e754f}.status.error{color:#a33d38}
+    .foot{font:10px Arial,sans-serif;letter-spacing:.14em;color:#9a8973;margin-top:24px}
+    .trap{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+    @media(max-width:380px){.choices{gap:6px}.choice{font-size:12px;padding:12px 5px}}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="eyebrow">The Wedding of</div>
+    <h1>Renerose <span class="amp">&amp;</span><br>Carlo</h1>
+    <div class="date">APRIL 27, 2027</div>
+    <div class="divider"></div>
+    <h2>Will you celebrate with us?</h2>
+    <p>Please choose your response below.</p>
+    <div class="choices" role="group" aria-label="Your RSVP response">
+      <button class="choice" type="button" data-choice="Yes" aria-pressed="false">Yes, gladly</button>
+      <button class="choice" type="button" data-choice="No" aria-pressed="false">Sorry, no</button>
+      <button class="choice" type="button" data-choice="Maybe" aria-pressed="false">Maybe</button>
+    </div>
+    <form class="form" id="rsvpForm">
+      <div class="field"><label for="guestName">Your name</label><input id="guestName" name="guestName" maxlength="100" autocomplete="name" required placeholder="Enter your full name"></div>
+      <div class="field" id="partyField"><label for="partySize">Number of guests in your party</label><select id="partySize" name="partySize"><option value="1">1 guest</option><option value="2">2 guests</option><option value="3">3 guests</option><option value="4">4 guests</option><option value="5">5 guests</option><option value="6">6 guests</option></select></div>
+      <div class="field"><label for="message">Message (optional)</label><textarea id="message" name="message" maxlength="500" placeholder="Leave a note for the couple"></textarea></div>
+      <label class="trap" aria-hidden="true">Leave this field empty<input name="website" tabindex="-1" autocomplete="off"></label>
+      <button class="submit" id="submitBtn" type="submit">Send RSVP</button>
+    </form>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+    <div class="foot">WITH LOVE · RENEROSE &amp; CARLO</div>
+  </main>
+  <script>
+    // Replace this with the deployed Google Apps Script Web App URL ending in /exec.
+    const RSVP_ENDPOINT = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+    const choices = [...document.querySelectorAll('.choice')];
+    const form = document.getElementById('rsvpForm');
+    const statusBox = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
+    const partyField = document.getElementById('partyField');
+    let selectedChoice = '';
+
+    choices.forEach(button => button.addEventListener('click', () => {
+      selectedChoice = button.dataset.choice;
+      choices.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      form.classList.add('visible');
+      partyField.style.display = selectedChoice === 'Yes' ? '' : 'none';
+      statusBox.textContent = '';
+      statusBox.classList.remove('error');
+      document.getElementById('guestName').focus({preventScroll:true});
+    }));
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!selectedChoice) return;
+      if (form.elements.website.value) return;
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(RSVP_ENDPOINT)) {
+        statusBox.textContent = 'RSVP is not connected yet. Please contact the couple.';
+        statusBox.classList.add('error');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+      statusBox.textContent = '';
+      const payload = new URLSearchParams({
+        guestName: form.elements.guestName.value.trim(),
+        response: selectedChoice,
+        partySize: selectedChoice === 'Yes' ? form.elements.partySize.value : '0',
+        message: form.elements.message.value.trim(),
+        website: ''
+      });
+      try {
+        await fetch(RSVP_ENDPOINT, {method:'POST', mode:'no-cors', body:payload});
+        statusBox.textContent = 'Thank you! Your RSVP has been sent.';
+        statusBox.classList.remove('error');
+        form.reset();
+        form.classList.remove('visible');
+        choices.forEach(item => item.setAttribute('aria-pressed','false'));
+        selectedChoice = '';
+      } catch (error) {
+        statusBox.textContent = 'We could not send your RSVP. Please try again.';
+        statusBox.classList.add('error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send RSVP';
+      }
+    });
+  </script>
+</body>
+</html>
