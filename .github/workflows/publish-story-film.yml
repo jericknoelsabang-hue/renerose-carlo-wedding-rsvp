@@ -1,0 +1,53 @@
+name: Publish prenup story film
+
+on:
+  push:
+    paths:
+      - .github/workflows/publish-story-film.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out website
+        uses: actions/checkout@v4
+
+      - name: Install video converter and Drive downloader
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install --quiet --disable-pip-version-check gdown
+
+      - name: Fetch original prenup story with audio
+        run: |
+          gdown "https://drive.google.com/uc?id=1rJbAQQ-QYhQHrQlP9T_USIhWcJO4t-wl" --output /tmp/rose-carlo-story-original.mp4
+          test -s /tmp/rose-carlo-story-original.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 /tmp/rose-carlo-story-original.mp4
+          ffprobe -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 /tmp/rose-carlo-story-original.mp4 | grep -q . || { echo "Original story film has no audio stream"; exit 1; }
+
+      - name: Create website-compatible looping film with soundtrack
+        run: |
+          mkdir -p assets
+          ffmpeg -y -hide_banner -loglevel error -i /tmp/rose-carlo-story-original.mp4 \
+            -map 0:v:0 -map 0:a:0 -c:v libx264 -preset medium -crf 23 \
+            -pix_fmt yuv420p -c:a aac -b:a 160k -movflags +faststart \
+            assets/rose-carlo-story.mp4
+          test -s assets/rose-carlo-story.mp4
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 assets/rose-carlo-story.mp4
+          ffprobe -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 assets/rose-carlo-story.mp4 | grep -q .
+
+      - name: Publish story video to GitHub Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/rose-carlo-story.mp4
+          if git diff --cached --quiet; then
+            echo "Story film already published."
+          else
+            git commit -m "Host prenup story film with audio for seamless looping"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
