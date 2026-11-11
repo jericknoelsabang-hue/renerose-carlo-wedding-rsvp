@@ -19,7 +19,7 @@ jobs:
       - name: Download the supplied prenup reel
         run: |
           python -m pip install --quiet --disable-pip-version-check gdown
-          gdown --id "1D1_zEB3e5Vg2USA7mVJh7Uh0FQVVARgq" --output /tmp/rose-carlo-original.mp4
+          gdown "https://drive.google.com/uc?id=1D1_zEB3e5Vg2USA7mVJh7Uh0FQVVARgq" --output /tmp/rose-carlo-original.mp4
           test -s /tmp/rose-carlo-original.mp4
           ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 /tmp/rose-carlo-original.mp4
 
