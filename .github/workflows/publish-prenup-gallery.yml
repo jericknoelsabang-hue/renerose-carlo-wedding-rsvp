@@ -1,0 +1,72 @@
+name: Publish authentic prenup gallery photos
+
+on:
+  push:
+    paths:
+      - .github/workflows/publish-prenup-gallery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image downloader
+        run: python -m pip install --quiet --disable-pip-version-check gdown pillow
+      - name: Download and validate the original photos
+        run: |
+          mkdir -p assets/prenup
+          python - <<'PY'
+          import concurrent.futures
+          import pathlib
+          import subprocess
+          from PIL import Image
+
+          photos = [
+          ("beach-walk", "1JoP1n2XuHkTXNTAIuwsSyaUp7VKbjxSd"),
+          ("beach-seated", "13f7eZgYzhPcpaJzD2j9oTNrv3QYZvVeU"),
+          ("beach-sand-embrace", "1KhJW3q045Qmi1ElAFtLfoqvVLogFlP4O"),
+          ("beach-proposal", "1f_pDrcTRHaUf8HWQimv4k_QYlu032Eca"),
+          ("beach-portrait-standing", "1zw7iomWDLBoVAzehymnvzbBGw5qpWZ1l"),
+          ("beach-candid", "1rDbalt0jXdWzJyR2vRFaz_M1ur0k83ZG"),
+          ("sunset-splash", "1UrIcEHg3sMRLg0-B6q2B3yrJPPODjwE-"),
+          ("sunset-lift", "1eK3JDhTUH1T1Dk8GhHNMNof9vUV_3-rL"),
+          ("sunset-waterplay", "1oUVTpnexfIWX_2iVt23hsFxCAnZdqTls"),
+          ("sunset-portrait-lift", "1Q0OIm17qgB8hh_1_xmWNFeKusa6kGDXX"),
+          ("sunset-kiss-wide", "1TBhJF8cpNM0ci3zvleOceUNImFxYTpxN"),
+          ("sunset-embrace", "1cfmUycJ0YO1r3v4qAdomZ02GYeuPectj"),
+          ("sunset-kiss-portrait", "1KvWoxP_89MR2eCFc5vi77PdKMaTxtGu9"),
+          ("garden-dancing", "1zE7UJelsmh740zmjlB1850YtxGQdcUFX"),
+          ("garden-back-to-back", "1XhhnnX-zQ_t8bGzt42ATg-ZChiXF-sAs"),
+          ("garden-picnic", "1aasmUtnjoydBdNdLjdRBqEro_MWQHbfv"),
+          ("garden-black", "1DJJxq50r_8Kg7CtxaLXLIOnOwrqfYGO_"),
+          ("garden-bubbles", "17xHUJK46pNpXdPbq_Z0BpD_hJITVDnkg"),
+          ("garden-wedding", "1VMrCAc5lzFwLmvJnCVBOOInADVi2TZs2"),
+          ]
+          output_dir = pathlib.Path("assets/prenup")
+          def download(photo):
+              name, drive_id = photo
+              dest = output_dir / (name + ".jpg")
+              subprocess.run(["gdown", "--quiet", f"https://drive.google.com/uc?id={drive_id}", "-O", str(dest)], check=True)
+              with Image.open(dest) as im:
+                  im.verify()
+              assert dest.stat().st_size > 5000, f"Unexpected small file: {dest}"
+              return name
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              for name in pool.map(download, photos):
+                  print("Verified", name)
+          PY
+      - name: Commit gallery assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/prenup/*.jpg
+          if git diff --cached --quiet; then
+            echo "Gallery photos already published."
+          else
+            git commit -m "Publish 19 authentic Renerose and Carlo prenup photos"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
