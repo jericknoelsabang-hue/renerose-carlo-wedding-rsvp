@@ -31,7 +31,9 @@ jobs:
       - name: Produce mobile-friendly silent HTML5 MP4
         run: |
           mkdir -p assets
-          ffmpeg -y -hide_banner -loglevel error -i /tmp/rose-carlo-original.mp4 -map 0:v:0 -vf "scale=720:-2" -an -c:v libx264 -preset medium -crf 24 -pix_fmt yuv420p -movflags +faststart assets/rose-carlo-hero.mp4
+          # Replace the "8" with the original "7" glyph from the same end-card.
+          # Preserves the original font, animation, names, and black backdrop.
+          ffmpeg -y -hide_banner -loglevel error -i /tmp/rose-carlo-original.mp4 -filter_complex "[0:v]split=2[base][copy];[copy]crop=38:50:709:1107[seven];[base][seven]overlay=538:1107:enable='gte(t,22.6)':shortest=1,scale=720:-2,format=yuv420p[video]" -map "[video]" -an -c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p -movflags +faststart assets/rose-carlo-hero.mp4
           ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 assets/rose-carlo-hero.mp4
           test -s assets/rose-carlo-hero.mp4
 
@@ -43,6 +45,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Hero video already published."
           else
-            git commit -m "Host the silent Renerose and Carlo hero reel on GitHub Pages"
+            git commit -m "Correct April 27 wedding date inside hero reel"
             git push origin "HEAD:${{ github.ref_name }}"
           fi
