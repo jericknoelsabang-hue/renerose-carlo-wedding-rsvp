@@ -12,6 +12,17 @@
   <meta property="og:description" content="Join Renerose and Carlo on April 27, 2027.">
   <meta property="og:image" content="https://lh3.googleusercontent.com/d/1QG26vZs7TtUzJTH6NDT5UJ1NbSszVJZC">
   <title>Renerose &amp; Carlo — Wedding Invitation</title>
+  <script>
+    // A new visit or browser-restored visit always opens at the invitation cover.
+    if ('scrollRestoration' in history) history.scrollRestoration='manual';
+    window.addEventListener('pageshow',()=>{
+      const root=document.documentElement;
+      const previous=root.style.scrollBehavior;
+      root.style.scrollBehavior='auto';
+      window.scrollTo(0,0);
+      requestAnimationFrame(()=>{root.style.scrollBehavior=previous;});
+    });
+  </script>
   <style>
     :root{--ink:#403838;--gold:#987344;--rose:#c58984;--cream:#fffaf7;--line:#eadbd3;--muted:#71696a;--sage:#78836b}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f8f3ea;color:var(--ink);font-family:Georgia,'Times New Roman',serif}a{color:inherit}
@@ -85,56 +96,100 @@
       if(coverPlayButton) coverPlayButton.addEventListener('click',startCoverVideo);
       if(coverVideo.readyState>=2) startCoverVideo();
     }
-    // Play the story film on arrival, loop continuously, and keep the original audio.
-    // Browsers generally block unmuted autoplay; offer one tap to enable sound.
+    // The prenup film starts only when at least 45% of it is visible in
+    // "A Little Story of Us", and pauses again when the guest scrolls away.
+    // Browsers generally block unmuted autoplay, so keep the audio tap fallback.
     const storyVideo=document.getElementById('story-video');
     const storySoundButton=document.getElementById('story-sound-button');
     if(storyVideo){
       storyVideo.loop=true;
       storyVideo.controls=false;
+      let storyInView=false;
+      let playbackAttempt=0;
       const promptForSound=(label)=>{
         if(!storySoundButton)return;
         storySoundButton.textContent=label;
         storySoundButton.hidden=false;
       };
+      const pauseStory=()=>{
+        storyInView=false;
+        playbackAttempt++;
+        storyVideo.pause();
+      };
       const playStory=async()=>{
+        if(!storyInView || document.hidden)return;
+        const attempt=++playbackAttempt;
         storyVideo.muted=false;
-        try {
+        try{
           await storyVideo.play();
+          if(attempt!==playbackAttempt || !storyInView || document.hidden){
+            storyVideo.pause();
+            return;
+          }
           if(storySoundButton)storySoundButton.hidden=true;
-        } catch(error) {
-          // Autoplay with audio was blocked: keep the silent video looping,
-          // then allow audio to be enabled using a user gesture.
+        }catch(error){
+          if(attempt!==playbackAttempt || !storyInView || document.hidden)return;
           storyVideo.muted=true;
-          try {
+          try{
             await storyVideo.play();
+            if(attempt!==playbackAttempt || !storyInView || document.hidden){
+              storyVideo.pause();
+              return;
+            }
             promptForSound('Tap to enable sound');
-          } catch(fallbackError) {
-            promptForSound('Play video with sound');
+          }catch(fallbackError){
+            if(storyInView)promptForSound('Play video with sound');
           }
         }
       };
       if(storySoundButton){
         storySoundButton.addEventListener('click',async()=>{
+          if(!storyInView)return;
           storyVideo.muted=false;
-          try {
+          try{
             await storyVideo.play();
             storySoundButton.hidden=true;
-          } catch(error) {
+          }catch(error){
             storyVideo.muted=true;
             promptForSound('Tap to play with sound');
           }
         });
       }
+      const setStoryVisibility=(visible)=>{
+        const shouldPlay=visible && !document.hidden;
+        if(shouldPlay===storyInView)return;
+        if(shouldPlay){
+          storyInView=true;
+          playStory();
+        }else{
+          pauseStory();
+        }
+      };
       if('IntersectionObserver' in window){
-        const storyObserver=new IntersectionObserver(entries=>{
-          if(entries[0].isIntersecting)playStory();
-          else storyVideo.pause();
-        },{threshold:.25});
-        storyObserver.observe(storyVideo);
-      } else {
-        playStory();
+        const observer=new IntersectionObserver(entries=>{
+          const entry=entries[0];
+          setStoryVisibility(entry.isIntersecting && entry.intersectionRatio>=0.45);
+        },{threshold:[0,0.45,1]});
+        observer.observe(storyVideo);
+      }else{
+        // Older browsers also wait for the video to actually be in the viewport.
+        const checkStoryOnScroll=()=>{
+          const rect=storyVideo.getBoundingClientRect();
+          const visibleHeight=Math.max(0,Math.min(rect.bottom,innerHeight)-Math.max(rect.top,0));
+          setStoryVisibility(rect.height>0 && visibleHeight/rect.height>=0.45);
+        };
+        window.addEventListener('scroll',checkStoryOnScroll,{passive:true});
+        window.addEventListener('resize',checkStoryOnScroll);
+        checkStoryOnScroll();
       }
+      document.addEventListener('visibilitychange',()=>{
+        if(document.hidden)pauseStory();
+        else{
+          const rect=storyVideo.getBoundingClientRect();
+          const visibleHeight=Math.max(0,Math.min(rect.bottom,innerHeight)-Math.max(rect.top,0));
+          setStoryVisibility(rect.height>0 && visibleHeight/rect.height>=0.45);
+        }
+      });
     }
     const RSVP_ENDPOINT='https://script.google.com/macros/s/AKfycby3nTqVwKnE7FPeN4ekA5ZTOA4_C6gfsCqdWvpFgmZo4eP0PkffpV3brx-8Ji_MtsGG/exec';
     const choices=[...document.querySelectorAll('.choice')],form=document.getElementById('rsvpForm'),statusBox=document.getElementById('status'),submitBtn=document.getElementById('submitBtn');
